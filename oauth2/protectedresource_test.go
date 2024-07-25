@@ -3,6 +3,7 @@ package oauth2
 import (
 	"github.com/stretchr/testify/require"
 	"net/http"
+	"net/http/httptest"
 	"net/url"
 	"testing"
 )
@@ -10,7 +11,7 @@ import (
 func TestParseProtectedResourceMetadataURL(t *testing.T) {
 	expected, _ := url.Parse("https://resource.example.com/.well-known/oauth-protected-resource")
 	t.Run("ok", func(t *testing.T) {
-		input := http.Response{
+		input := &http.Response{
 			Header: http.Header{
 				"Www-Authenticate": []string{
 					`Bearer error="invalid_request", error_description="No access token was provided in this request", resource_metadata="https://resource.example.com/.well-known/oauth-protected-resource"`,
@@ -21,12 +22,12 @@ func TestParseProtectedResourceMetadataURL(t *testing.T) {
 		require.Equal(t, expected, actual)
 	})
 	t.Run("no WWW-Authenticate header", func(t *testing.T) {
-		input := http.Response{}
+		input := &http.Response{}
 		actual := ParseProtectedResourceMetadataURL(input)
 		require.Nil(t, actual)
 	})
 	t.Run("WWW-Authenticate header contains escaped quotes", func(t *testing.T) {
-		input := http.Response{
+		input := &http.Response{
 			Header: http.Header{
 				"Www-Authenticate": []string{
 					`Bearer error="invalid_request", error_description="No access\" token was provided in this request", resource_metadata="https://resource.example.com/.well-known/oauth-protected-resource"`,
@@ -37,7 +38,7 @@ func TestParseProtectedResourceMetadataURL(t *testing.T) {
 		require.Equal(t, expected, actual)
 	})
 	t.Run("WWW-Authenticate header contains commas in values", func(t *testing.T) {
-		input := http.Response{
+		input := &http.Response{
 			Header: http.Header{
 				"Www-Authenticate": []string{
 					`Bearer error="invalid_request", error_description="No access, token was provided in this,request",, resource_metadata="https://resource.example.com/.well-known/oauth-protected-resource"`,
@@ -46,5 +47,31 @@ func TestParseProtectedResourceMetadataURL(t *testing.T) {
 		}
 		actual := ParseProtectedResourceMetadataURL(input)
 		require.Equal(t, expected, actual)
+	})
+}
+
+func TestProtectedResourceMetadataLocator(t *testing.T) {
+	t.Run("ok", func(t *testing.T) {
+		mux := http.NewServeMux()
+		mux.HandleFunc("/.well-known/oauth-protected-resource", func(writer http.ResponseWriter, request *http.Request) {
+			writer.Header().Add("Content-Type", "application/json")
+			writer.WriteHeader(http.StatusOK)
+			_, _ = writer.Write([]byte(`{"resource":"https://resource.example.com/.well-known/oauth-protected-resource", "authorization_servers": ["https://example.com/auth"]}`))
+		})
+		httpServer := httptest.NewServer(mux)
+
+		inputResponse := &http.Response{
+			Header: http.Header{
+				"Www-Authenticate": []string{
+					`Bearer resource_metadata="` + httpServer.URL + `/.well-known/oauth-protected-resource"`,
+				},
+			},
+		}
+		actual, err := ProtectedResourceMetadataLocator(&MetadataLoader{
+			Client: http.DefaultClient,
+		}, inputResponse)
+
+		require.NoError(t, err)
+		require.Equal(t, "https://example.com/auth", actual.String())
 	})
 }

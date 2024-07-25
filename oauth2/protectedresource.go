@@ -7,7 +7,7 @@ import (
 	"strings"
 )
 
-func ProtectedResourceMetadataLocator(metadataLoader *MetadataLoader, response http.Response) (*url.URL, error) {
+func ProtectedResourceMetadataLocator(metadataLoader *MetadataLoader, response *http.Response) (*url.URL, error) {
 	metadataURL := ParseProtectedResourceMetadataURL(response)
 	if metadataURL == nil {
 		return nil, nil
@@ -30,7 +30,7 @@ func ProtectedResourceMetadataLocator(metadataLoader *MetadataLoader, response h
 // ParseProtectedResourceMetadataURL returns the URL of the protected resource metadata according to https://www.ietf.org/archive/id/draft-ietf-oauth-resource-metadata-07.html,
 // if the HTTP response contains a WWW-Authenticate header according to the specification.
 // If the header is not present, does not contain the WWW-Authenticate header or the header does not contain the protected resource metadata URL, nil is returned.
-func ParseProtectedResourceMetadataURL(response http.Response) *url.URL {
+func ParseProtectedResourceMetadataURL(response *http.Response) *url.URL {
 	header := response.Header.Get("WWW-Authenticate")
 	if len(header) == 0 {
 		return nil

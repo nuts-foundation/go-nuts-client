@@ -15,11 +15,11 @@ type HttpRequestDoer interface {
 
 // AuthorizationServerLocator is a function that determines the URL of the OAuth2 Authorization Server from an OAuth2 Resource Server response.
 // If the Authorization Server URL cannot be determined, the function returns nil.
-type AuthorizationServerLocator func(metadataLoader *MetadataLoader, response http.Response) (*url.URL, error)
+type AuthorizationServerLocator func(metadataLoader *MetadataLoader, response *http.Response) (*url.URL, error)
 
 // StaticAuthorizationServerURL returns an AuthorizationServerLocator that always returns the same URL.
 func StaticAuthorizationServerURL(u *url.URL) AuthorizationServerLocator {
-	return func(_ *MetadataLoader, _ http.Response) (*url.URL, error) {
+	return func(_ *MetadataLoader, _ *http.Response) (*url.URL, error) {
 		return u, nil
 	}
 }
@@ -82,7 +82,7 @@ func (o *Transport) requestToken(httpResponse *http.Response, resourceURL *url.U
 	var authzServerURL *url.URL
 	var err error
 	for _, locator := range o.AuthzServerLocators {
-		authzServerURL, err = locator(o.MetadataLoader, *httpResponse)
+		authzServerURL, err = locator(o.MetadataLoader, httpResponse)
 		if authzServerURL != nil {
 			break
 		}
