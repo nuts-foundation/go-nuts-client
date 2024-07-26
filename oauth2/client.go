@@ -100,6 +100,9 @@ func (o *Transport) requestToken(httpRequest *http.Request, httpResponse *http.R
 	if ctxScope, ok := httpRequest.Context().Value(withScopeContextKeyInstance).(string); ok {
 		scope = ctxScope
 	}
+	if scope == "" {
+		return nil, errors.New("scope is required")
+	}
 
 	token, err := o.TokenSource.Token(httpRequest, authzServerURL, scope)
 	if err != nil {

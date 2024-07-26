@@ -2,6 +2,7 @@ package oauth2
 
 import (
 	"bytes"
+	"context"
 	"github.com/stretchr/testify/require"
 	"io"
 	"net/http"
@@ -92,6 +93,21 @@ func TestClient_RoundTrip(t *testing.T) {
 		responseBytes, err := io.ReadAll(httpResponse.Body)
 		require.NoError(t, err)
 		require.Equal(t, "OK", string(responseBytes))
+	})
+}
+
+func TestTransport_requestToken(t *testing.T) {
+	t.Run("scope not set", func(t *testing.T) {
+		httpRequest, _ := http.NewRequestWithContext(context.Background(), "GET", "https://resource.example.com", nil)
+		transport := &Transport{
+			AuthzServerLocators: []AuthorizationServerLocator{
+				StaticAuthorizationServerURL(&url.URL{}),
+			},
+		}
+
+		_, err := transport.requestToken(httpRequest, nil)
+
+		require.EqualError(t, err, "scope is required")
 	})
 }
 
