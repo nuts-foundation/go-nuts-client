@@ -2,6 +2,7 @@ package oauth2
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -39,11 +40,6 @@ func NewClient(tokenSource TokenSource, scope string) *http.Client {
 	}
 }
 
-type tokenCacheKey struct {
-	resourceServer string
-	scope          string
-}
-
 type Transport struct {
 	TokenSource         TokenSource
 	MetadataLoader      *MetadataLoader
@@ -52,7 +48,7 @@ type Transport struct {
 	AuthzServerLocators []AuthorizationServerLocator
 }
 
-func (o *Transport) RoundTrip(request *http.Request) (*http.Response, error) {
+func (o *Transport) RoundTrip(httpRequest *http.Request) (*http.Response, error) {
 	var err error
 	var client http.RoundTripper
 	if o.UnderlyingTransport == nil {
@@ -60,25 +56,33 @@ func (o *Transport) RoundTrip(request *http.Request) (*http.Response, error) {
 	} else {
 		client = o.UnderlyingTransport
 	}
-	httpResponse, err := client.RoundTrip(request)
+	// Work with a buffered request body, as we often need to retry the request.
+	var requestBody []byte
+	if httpRequest.Body != nil {
+		requestBody, err = io.ReadAll(httpRequest.Body)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	httpRequest = copyRequest(httpRequest, requestBody)
+	httpResponse, err := client.RoundTrip(httpRequest)
 	if err != nil {
 		return nil, err
 	}
 	if httpResponse.StatusCode == http.StatusUnauthorized {
-		token, err := o.requestToken(httpResponse, request.URL)
+		token, err := o.requestToken(httpRequest, httpResponse)
 		if err != nil {
-			return nil, fmt.Errorf("OAuth2 token request (resource=%s): %w", request.URL.String(), err)
+			return nil, fmt.Errorf("OAuth2 token request (resource=%s): %w", httpRequest.URL.String(), err)
 		}
-		request, err = requestWithToken(request, token)
-		if err != nil {
-			return nil, err
-		}
-		httpResponse, err = client.RoundTrip(request)
+		httpRequest = copyRequest(httpRequest, requestBody)
+		httpRequest.Header.Set("Authorization", fmt.Sprintf("%s %s", token.TokenType, token.AccessToken))
+		httpResponse, err = client.RoundTrip(httpRequest)
 	}
 	return httpResponse, err
 }
 
-func (o *Transport) requestToken(httpResponse *http.Response, resourceURL *url.URL) (*Token, error) {
+func (o *Transport) requestToken(httpRequest *http.Request, httpResponse *http.Response) (*Token, error) {
 	var authzServerURL *url.URL
 	var err error
 	for _, locator := range o.AuthzServerLocators {
@@ -91,23 +95,25 @@ func (o *Transport) requestToken(httpResponse *http.Response, resourceURL *url.U
 		return nil, errors.New("couldn't determine the correct Authorization Server")
 	}
 
-	token, err := o.TokenSource.Token(authzServerURL, resourceURL, o.Scope)
+	token, err := o.TokenSource.Token(httpRequest, authzServerURL, o.Scope)
 	if err != nil {
 		return nil, err
 	}
 	return token, err
 }
 
-func requestWithToken(request *http.Request, token *Token) (*http.Request, error) {
+func copyRequest(request *http.Request, body []byte) *http.Request {
 	request = request.Clone(request.Context())
-	if request.Body != nil {
-		requestBody, err := io.ReadAll(request.Body)
-		if err != nil {
-			return nil, err
-		}
-		request.Body = io.NopCloser(bytes.NewReader(requestBody))
+	if len(body) > 0 {
+		request.Body = io.NopCloser(bytes.NewReader(body))
 	}
-	// Set the Authorization header
-	request.Header.Set("Authorization", fmt.Sprintf("%s %s", token.TokenType, token.AccessToken))
-	return request, nil
+	return request
 }
+
+func WithScope(ctx context.Context, scope string) context.Context {
+	return context.WithValue(ctx, withScopeContextKeyInstance, scope)
+}
+
+type withScopeContextKey struct{}
+
+var withScopeContextKeyInstance = withScopeContextKey{}

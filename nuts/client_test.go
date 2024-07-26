@@ -1,6 +1,7 @@
 package nuts
 
 import (
+	"context"
 	"github.com/stretchr/testify/require"
 	"net/http"
 	"net/http/httptest"
@@ -23,9 +24,9 @@ func TestOAuth2TokenSource_Token(t *testing.T) {
 			NutsAPIURL: httpServer.URL,
 		}
 		expectedAuthServerURL, _ := url.Parse("https://auth.example.com")
-		requestedResource := &url.URL{}
+		httpRequest, _ := http.NewRequestWithContext(context.Background(), "GET", "https://resource.example.com", nil)
 
-		token, err := tokenSource.Token(expectedAuthServerURL, requestedResource, "test")
+		token, err := tokenSource.Token(httpRequest, expectedAuthServerURL, "test")
 
 		require.NoError(t, err)
 		require.NotNil(t, token)

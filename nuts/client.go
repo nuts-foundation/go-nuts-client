@@ -38,7 +38,7 @@ type OAuth2TokenSource struct {
 	NutsHttpClient *http.Client
 }
 
-func (o OAuth2TokenSource) Token(authzServerURL *url.URL, requestedResource *url.URL, scope string) (*oauth2.Token, error) {
+func (o OAuth2TokenSource) Token(httpRequest *http.Request, authzServerURL *url.URL, scope string) (*oauth2.Token, error) {
 	if o.OwnDID == "" {
 		return nil, fmt.Errorf("ownDID is required")
 	}

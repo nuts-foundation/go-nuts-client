@@ -1,6 +1,7 @@
 package oauth2
 
 import (
+	"net/http"
 	"net/url"
 	"time"
 )
@@ -12,5 +13,5 @@ type Token struct {
 }
 
 type TokenSource interface {
-	Token(authzServerURL *url.URL, requestedResource *url.URL, scope string) (*Token, error)
+	Token(httpRequest *http.Request, authzServerURL *url.URL, scope string) (*Token, error)
 }
