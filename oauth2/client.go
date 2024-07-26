@@ -95,7 +95,13 @@ func (o *Transport) requestToken(httpRequest *http.Request, httpResponse *http.R
 		return nil, errors.New("couldn't determine the correct Authorization Server")
 	}
 
-	token, err := o.TokenSource.Token(httpRequest, authzServerURL, o.Scope)
+	// Use the scope from the request context if available.
+	scope := o.Scope
+	if ctxScope, ok := httpRequest.Context().Value(withScopeContextKeyInstance).(string); ok {
+		scope = ctxScope
+	}
+
+	token, err := o.TokenSource.Token(httpRequest, authzServerURL, scope)
 	if err != nil {
 		return nil, err
 	}
@@ -110,6 +116,7 @@ func copyRequest(request *http.Request, body []byte) *http.Request {
 	return request
 }
 
+// WithScope returns a new context with the given OAuth2 scope.
 func WithScope(ctx context.Context, scope string) context.Context {
 	return context.WithValue(ctx, withScopeContextKeyInstance, scope)
 }

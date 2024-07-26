@@ -28,11 +28,6 @@ type OAuth2TokenSource struct {
 	OwnDID string
 	// NutsAPIURL is the base URL of the Nuts node API.
 	NutsAPIURL string
-	// Context is the context used for the HTTP requests to the Nuts node.
-	// If not set, context.Background() is used.
-	Context context.Context
-	// AdditionalCredentials are additional credentials that are used to request the service access token.
-	AdditionalCredentials CredentialProvider
 	// NutsHttpClient is the HTTP client used to communicate with the Nuts node.
 	// If not set, http.DefaultClient is used.
 	NutsHttpClient *http.Client
@@ -42,13 +37,9 @@ func (o OAuth2TokenSource) Token(httpRequest *http.Request, authzServerURL *url.
 	if o.OwnDID == "" {
 		return nil, fmt.Errorf("ownDID is required")
 	}
-	var ctx = o.Context
-	if ctx == nil {
-		ctx = context.Background()
-	}
 	var additionalCredentials []vc.VerifiableCredential
-	if o.AdditionalCredentials != nil {
-		additionalCredentials = o.AdditionalCredentials.Credentials()
+	if credsCtx, ok := httpRequest.Context().Value(additionalCredentialsKey).([]vc.VerifiableCredential); ok {
+		additionalCredentials = credsCtx
 	}
 	client, err := iam.NewClient(o.NutsAPIURL)
 	if err != nil {
@@ -56,7 +47,8 @@ func (o OAuth2TokenSource) Token(httpRequest *http.Request, authzServerURL *url.
 	}
 	// TODO: Might want to support DPoP as well
 	var tokenType = iam.ServiceAccessTokenRequestTokenTypeBearer
-	response, err := client.RequestServiceAccessToken(ctx, o.OwnDID, iam.RequestServiceAccessTokenJSONRequestBody{
+	// TODO: Is this the right context to use?
+	response, err := client.RequestServiceAccessToken(httpRequest.Context(), o.OwnDID, iam.RequestServiceAccessTokenJSONRequestBody{
 		AuthorizationServer: authzServerURL.String(),
 		Credentials:         &additionalCredentials,
 		Scope:               scope,
@@ -82,4 +74,14 @@ func (o OAuth2TokenSource) Token(httpRequest *http.Request, authzServerURL *url.
 		TokenType:   accessTokenResponse.JSON200.TokenType,
 		Expiry:      expiry,
 	}, nil
+}
+
+type additionalCredentialsKeyType struct{}
+
+var additionalCredentialsKey = additionalCredentialsKeyType{}
+
+// WithAdditionalCredentials returns a new context with the additional credentials set.
+// They will be provided to the Nuts node when requesting the service access token.
+func WithAdditionalCredentials(ctx context.Context, credentials []vc.VerifiableCredential) context.Context {
+	return context.WithValue(ctx, additionalCredentialsKey, credentials)
 }
