@@ -1,6 +1,7 @@
 package oauth2
 
 import (
+	"context"
 	"github.com/stretchr/testify/require"
 	"net/http"
 	"net/http/httptest"
@@ -51,7 +52,26 @@ func TestParseProtectedResourceMetadataURL(t *testing.T) {
 }
 
 func TestProtectedResourceMetadataLocator(t *testing.T) {
-	t.Run("ok", func(t *testing.T) {
+	t.Run("resource URI passed in context", func(t *testing.T) {
+		mux := http.NewServeMux()
+		mux.HandleFunc("/.well-known/oauth-protected-resource", func(writer http.ResponseWriter, request *http.Request) {
+			writer.Header().Add("Content-Type", "application/json")
+			writer.WriteHeader(http.StatusOK)
+			_, _ = writer.Write([]byte(`{"resource":"https://resource.example.com/.well-known/oauth-protected-resource", "authorization_servers": ["https://example.com/auth"]}`))
+		})
+		httpServer := httptest.NewServer(mux)
+
+		ctx := WithResourceURI(context.Background(), httpServer.URL)
+		httpRequest, _ := http.NewRequestWithContext(ctx, http.MethodGet, "https://example.com", nil)
+		inputResponse := &http.Response{Request: httpRequest}
+		actual, err := ProtectedResourceMetadataLocator(&MetadataLoader{
+			Client: http.DefaultClient,
+		}, inputResponse)
+
+		require.NoError(t, err)
+		require.Equal(t, "https://example.com/auth", actual.String())
+	})
+	t.Run("WWW-Authenticate header", func(t *testing.T) {
 		mux := http.NewServeMux()
 		mux.HandleFunc("/.well-known/oauth-protected-resource", func(writer http.ResponseWriter, request *http.Request) {
 			writer.Header().Add("Content-Type", "application/json")
@@ -61,6 +81,7 @@ func TestProtectedResourceMetadataLocator(t *testing.T) {
 		httpServer := httptest.NewServer(mux)
 
 		inputResponse := &http.Response{
+			Request: httptest.NewRequest(http.MethodGet, "https://example.com", nil),
 			Header: http.Header{
 				"Www-Authenticate": []string{
 					`Bearer resource_metadata="` + httpServer.URL + `/.well-known/oauth-protected-resource"`,

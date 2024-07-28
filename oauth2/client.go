@@ -119,7 +119,8 @@ func copyRequest(request *http.Request, body []byte) *http.Request {
 	return request
 }
 
-// WithScope returns a new context with the given OAuth2 scope.
+// WithScope returns a new context with the given OAuth2 scope,
+// which will override the default scope set in the OAuth2 client.
 func WithScope(ctx context.Context, scope string) context.Context {
 	return context.WithValue(ctx, withScopeContextKeyInstance, scope)
 }
@@ -127,3 +128,15 @@ func WithScope(ctx context.Context, scope string) context.Context {
 type withScopeContextKey struct{}
 
 var withScopeContextKeyInstance = withScopeContextKey{}
+
+type resourceURIContextKeyType struct{}
+
+var resourceURIContextKey = resourceURIContextKeyType{}
+
+// WithResourceURI returns a new context with the given resource URI,
+// which will be used to fetch the protected resource metadata when using ProtectedResourceMetadataLocator.
+// This is useful when the resource server is not able to provide the protected resource metadata URL in the WWW-Authenticate response header.
+// E.g., when an API gateway is used that allows limited control over the response headers.
+func WithResourceURI(ctx context.Context, uri string) context.Context {
+	return context.WithValue(ctx, resourceURIContextKey, uri)
+}

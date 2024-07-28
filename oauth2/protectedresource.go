@@ -7,8 +7,23 @@ import (
 	"strings"
 )
 
+// ProtectedResourceMetadataLocator tries to load the OAuth2 Authorization Server URL for a resource server,
+// using protected resource metadata provided by the resource server.
+// It tries to locate the URL of the resource metadata using the following options:
+//   - resource URI specified in request context
+//   - WWW-Authenticate header in the response (specified by the draft RFC).
 func ProtectedResourceMetadataLocator(metadataLoader *MetadataLoader, response *http.Response) (*url.URL, error) {
-	metadataURL := ParseProtectedResourceMetadataURL(response)
+	var metadataURL *url.URL
+	var err error
+	if resourceURI, ok := response.Request.Context().Value(resourceURIContextKey).(string); ok {
+		metadataURL, err = url.Parse(resourceURI)
+		if err != nil {
+			return nil, err
+		}
+		metadataURL = metadataURL.JoinPath(".well-known/oauth-protected-resource")
+	} else {
+		metadataURL = ParseProtectedResourceMetadataURL(response)
+	}
 	if metadataURL == nil {
 		return nil, nil
 	}
