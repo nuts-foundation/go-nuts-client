@@ -72,27 +72,53 @@ func TestProtectedResourceMetadataLocator(t *testing.T) {
 		require.Equal(t, "https://example.com/auth", actual.String())
 	})
 	t.Run("WWW-Authenticate header", func(t *testing.T) {
-		mux := http.NewServeMux()
-		mux.HandleFunc("/.well-known/oauth-protected-resource", func(writer http.ResponseWriter, request *http.Request) {
-			writer.Header().Add("Content-Type", "application/json")
-			writer.WriteHeader(http.StatusOK)
-			_, _ = writer.Write([]byte(`{"resource":"https://resource.example.com/.well-known/oauth-protected-resource", "authorization_servers": ["https://example.com/auth"]}`))
-		})
-		httpServer := httptest.NewServer(mux)
+		t.Run("fully qualified URL", func(t *testing.T) {
+			mux := http.NewServeMux()
+			mux.HandleFunc("/.well-known/oauth-protected-resource", func(writer http.ResponseWriter, request *http.Request) {
+				writer.Header().Add("Content-Type", "application/json")
+				writer.WriteHeader(http.StatusOK)
+				_, _ = writer.Write([]byte(`{"resource":"https://resource.example.com/.well-known/oauth-protected-resource", "authorization_servers": ["https://example.com/auth"]}`))
+			})
+			httpServer := httptest.NewServer(mux)
 
-		inputResponse := &http.Response{
-			Request: httptest.NewRequest(http.MethodGet, "https://example.com", nil),
-			Header: http.Header{
-				"Www-Authenticate": []string{
-					`Bearer resource_metadata="` + httpServer.URL + `/.well-known/oauth-protected-resource"`,
+			inputResponse := &http.Response{
+				Request: httptest.NewRequest(http.MethodGet, "https://example.com", nil),
+				Header: http.Header{
+					"Www-Authenticate": []string{
+						`Bearer resource_metadata="` + httpServer.URL + `/.well-known/oauth-protected-resource"`,
+					},
 				},
-			},
-		}
-		actual, err := ProtectedResourceMetadataLocator(&MetadataLoader{
-			Client: http.DefaultClient,
-		}, inputResponse)
+			}
+			actual, err := ProtectedResourceMetadataLocator(&MetadataLoader{
+				Client: http.DefaultClient,
+			}, inputResponse)
 
-		require.NoError(t, err)
-		require.Equal(t, "https://example.com/auth", actual.String())
+			require.NoError(t, err)
+			require.Equal(t, "https://example.com/auth", actual.String())
+		})
+		t.Run("relative URL", func(t *testing.T) {
+			mux := http.NewServeMux()
+			mux.HandleFunc("/foo/.well-known/oauth-protected-resource", func(writer http.ResponseWriter, request *http.Request) {
+				writer.Header().Add("Content-Type", "application/json")
+				writer.WriteHeader(http.StatusOK)
+				_, _ = writer.Write([]byte(`{"resource":"/foo", "authorization_servers": ["https://example.com/auth"]}`))
+			})
+			httpServer := httptest.NewServer(mux)
+
+			inputResponse := &http.Response{
+				Request: httptest.NewRequest(http.MethodGet, httpServer.URL+"/some/resource", nil),
+				Header: http.Header{
+					"Www-Authenticate": []string{
+						`Bearer resource_metadata="/foo/.well-known/oauth-protected-resource"`,
+					},
+				},
+			}
+			actual, err := ProtectedResourceMetadataLocator(&MetadataLoader{
+				Client: http.DefaultClient,
+			}, inputResponse)
+
+			require.NoError(t, err)
+			require.Equal(t, "https://example.com/auth", actual.String())
+		})
 	})
 }

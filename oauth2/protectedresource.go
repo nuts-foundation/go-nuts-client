@@ -23,6 +23,10 @@ func ProtectedResourceMetadataLocator(metadataLoader *MetadataLoader, response *
 		metadataURL = metadataURL.JoinPath(".well-known/oauth-protected-resource")
 	} else {
 		metadataURL = ParseProtectedResourceMetadataURL(response)
+		metadataURL, err = response.Request.URL.Parse(metadataURL.String())
+		if err != nil {
+			return nil, err
+		}
 	}
 	if metadataURL == nil {
 		return nil, nil
