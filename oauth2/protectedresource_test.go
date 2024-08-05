@@ -71,6 +71,16 @@ func TestProtectedResourceMetadataLocator(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, "https://example.com/auth", actual.String())
 	})
+	t.Run("unable to determine Authorization Server", func(t *testing.T) {
+		httpRequest, _ := http.NewRequestWithContext(context.Background(), http.MethodGet, "https://example.com", nil)
+		inputResponse := &http.Response{Request: httpRequest}
+		actual, err := ProtectedResourceMetadataLocator(&MetadataLoader{
+			Client: http.DefaultClient,
+		}, inputResponse)
+
+		require.NoError(t, err)
+		require.Nil(t, actual)
+	})
 	t.Run("WWW-Authenticate header", func(t *testing.T) {
 		t.Run("fully qualified URL", func(t *testing.T) {
 			mux := http.NewServeMux()
