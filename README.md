@@ -3,6 +3,8 @@
 Contains:
 
 - Generated clients to interact with the Nuts node's internal APIs
+  - Discovery
+  - Auth
 - An OAuth2 client for interacting with Resource Servers that are secured using Nuts.
 
 ## Development
