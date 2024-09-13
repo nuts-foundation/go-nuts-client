@@ -25,7 +25,7 @@ func TokenSource(nutsAPIURL string, ownDID string) *OAuth2TokenSource {
 var _ oauth2.TokenSource = &OAuth2TokenSource{}
 
 type OAuth2TokenSource struct {
-	OwnDID string
+	NutsSubject string
 	// NutsAPIURL is the base URL of the Nuts node API.
 	NutsAPIURL string
 	// NutsHttpClient is the HTTP client used to communicate with the Nuts node.
@@ -34,7 +34,7 @@ type OAuth2TokenSource struct {
 }
 
 func (o OAuth2TokenSource) Token(httpRequest *http.Request, authzServerURL *url.URL, scope string) (*oauth2.Token, error) {
-	if o.OwnDID == "" {
+	if o.NutsSubject == "" {
 		return nil, fmt.Errorf("ownDID is required")
 	}
 	var additionalCredentials []vc.VerifiableCredential
@@ -48,7 +48,7 @@ func (o OAuth2TokenSource) Token(httpRequest *http.Request, authzServerURL *url.
 	// TODO: Might want to support DPoP as well
 	var tokenType = iam.ServiceAccessTokenRequestTokenTypeBearer
 	// TODO: Is this the right context to use?
-	response, err := client.RequestServiceAccessToken(httpRequest.Context(), o.OwnDID, iam.RequestServiceAccessTokenJSONRequestBody{
+	response, err := client.RequestServiceAccessToken(httpRequest.Context(), o.NutsSubject, iam.RequestServiceAccessTokenJSONRequestBody{
 		AuthorizationServer: authzServerURL.String(),
 		Credentials:         &additionalCredentials,
 		Scope:               scope,
