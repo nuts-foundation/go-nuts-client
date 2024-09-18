@@ -4,5 +4,5 @@ package discovery
 // When regenerating code, you need to alter it to map[string]interface{}
 // This function is there to make sure compilation fails if it's map[string]string
 var _ = SearchPresentationsParams{
-	Query: &map[string]interface{}{},
+	Query: &map[string]string{},
 }
