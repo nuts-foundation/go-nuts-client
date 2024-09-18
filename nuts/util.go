@@ -27,6 +27,9 @@ func ParseResponse[T any](err error, httpResponse *http.Response, fn func(rsp *h
 		detail := "Response data:\n----------------\n" + strings.TrimSpace(string(responseData)) + "\n----------------"
 		return nil, fmt.Errorf("non-OK status code (status=%s, url=%s)\n%s", httpResponse.Status, httpResponse.Request.URL, detail)
 	}
+	if !strings.Contains(httpResponse.Header.Get("Content-Type"), "application/json") {
+		return nil, fmt.Errorf("unexpected response content type: %s", httpResponse.Header.Get("Content-Type"))
+	}
 	result, err := fn(httpResponse)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse response: %w", err)

@@ -20,6 +20,7 @@ func Test_ParseResponse(t *testing.T) {
 			StatusCode: 200,
 			Status:     "200 OK",
 			Body:       io.NopCloser(strings.NewReader("http-test-response")),
+			Header:     http.Header{"Content-Type": []string{"application/json;charset=utf-8"}},
 			Request:    httptest.NewRequest(http.MethodGet, "http://example.com", nil),
 		}
 	}
@@ -28,6 +29,7 @@ func Test_ParseResponse(t *testing.T) {
 			StatusCode: 404,
 			Status:     "404 Not Found",
 			Body:       io.NopCloser(strings.NewReader("http-test-response")),
+			Header:     http.Header{"Content-Type": []string{"application/json;charset=utf-8"}},
 			Request:    httptest.NewRequest(http.MethodGet, "http://example.com", nil),
 		}
 	}
@@ -49,5 +51,15 @@ func Test_ParseResponse(t *testing.T) {
 	t.Run("non-ok status", func(t *testing.T) {
 		_, err := ParseResponse(nil, nokResponse(), fn)
 		require.EqualError(t, err, "non-OK status code (status=404 Not Found, url=http://example.com)\nResponse data:\n----------------\nhttp-test-response\n----------------")
+	})
+	t.Run("unexpected content type", func(t *testing.T) {
+		_, err := ParseResponse(nil, &http.Response{
+			StatusCode: 200,
+			Status:     "200 OK",
+			Body:       io.NopCloser(strings.NewReader("http-test-response")),
+			Request:    httptest.NewRequest(http.MethodGet, "http://example.com", nil),
+			Header:     http.Header{"Content-Type": []string{"text/plain"}},
+		}, fn)
+		require.EqualError(t, err, "unexpected response content type: text/plain")
 	})
 }
