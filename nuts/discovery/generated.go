@@ -68,7 +68,7 @@ type VerifiablePresentation = externalRef0.VerifiablePresentation
 
 // SearchPresentationsParams defines parameters for SearchPresentations.
 type SearchPresentationsParams struct {
-	Query *map[string]string `form:"query,omitempty" json:"query,omitempty"`
+	Query *map[string]interface{} `form:"query,omitempty" json:"query,omitempty"`
 }
 
 // ActivateServiceForSubjectJSONRequestBody defines body for ActivateServiceForSubject for application/json ContentType.
