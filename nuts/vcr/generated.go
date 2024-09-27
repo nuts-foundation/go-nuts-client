@@ -493,16 +493,16 @@ type ClientInterface interface {
 
 	CreateVP(ctx context.Context, body CreateVPJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	// GetCredentialsInWallet request
-	GetCredentialsInWallet(ctx context.Context, did string, reqEditors ...RequestEditorFn) (*http.Response, error)
-
-	// LoadVCWithBody request with any body
-	LoadVCWithBody(ctx context.Context, did string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
-
-	LoadVC(ctx context.Context, did string, body LoadVCJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
-
 	// RemoveCredentialFromWallet request
 	RemoveCredentialFromWallet(ctx context.Context, did string, id string, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GetCredentialsInWallet request
+	GetCredentialsInWallet(ctx context.Context, subjectID string, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// LoadVCWithBody request with any body
+	LoadVCWithBody(ctx context.Context, subjectID string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	LoadVC(ctx context.Context, subjectID string, body LoadVCJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// IssueVCWithBody request with any body
 	IssueVCWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -574,44 +574,44 @@ func (c *Client) CreateVP(ctx context.Context, body CreateVPJSONRequestBody, req
 	return c.Client.Do(req)
 }
 
-func (c *Client) GetCredentialsInWallet(ctx context.Context, did string, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewGetCredentialsInWalletRequest(c.Server, did)
-	if err != nil {
-		return nil, err
-	}
-	req = req.WithContext(ctx)
-	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
-		return nil, err
-	}
-	return c.Client.Do(req)
-}
-
-func (c *Client) LoadVCWithBody(ctx context.Context, did string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewLoadVCRequestWithBody(c.Server, did, contentType, body)
-	if err != nil {
-		return nil, err
-	}
-	req = req.WithContext(ctx)
-	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
-		return nil, err
-	}
-	return c.Client.Do(req)
-}
-
-func (c *Client) LoadVC(ctx context.Context, did string, body LoadVCJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewLoadVCRequest(c.Server, did, body)
-	if err != nil {
-		return nil, err
-	}
-	req = req.WithContext(ctx)
-	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
-		return nil, err
-	}
-	return c.Client.Do(req)
-}
-
 func (c *Client) RemoveCredentialFromWallet(ctx context.Context, did string, id string, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewRemoveCredentialFromWalletRequest(c.Server, did, id)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) GetCredentialsInWallet(ctx context.Context, subjectID string, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetCredentialsInWalletRequest(c.Server, subjectID)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) LoadVCWithBody(ctx context.Context, subjectID string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewLoadVCRequestWithBody(c.Server, subjectID, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) LoadVC(ctx context.Context, subjectID string, body LoadVCJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewLoadVCRequest(c.Server, subjectID, body)
 	if err != nil {
 		return nil, err
 	}
@@ -866,81 +866,6 @@ func NewCreateVPRequestWithBody(server string, contentType string, body io.Reade
 	return req, nil
 }
 
-// NewGetCredentialsInWalletRequest generates requests for GetCredentialsInWallet
-func NewGetCredentialsInWalletRequest(server string, did string) (*http.Request, error) {
-	var err error
-
-	var pathParam0 string
-
-	pathParam0 = did
-
-	serverURL, err := url.Parse(server)
-	if err != nil {
-		return nil, err
-	}
-
-	operationPath := fmt.Sprintf("/internal/vcr/v2/holder/%s/vc", pathParam0)
-	if operationPath[0] == '/' {
-		operationPath = "." + operationPath
-	}
-
-	queryURL, err := serverURL.Parse(operationPath)
-	if err != nil {
-		return nil, err
-	}
-
-	req, err := http.NewRequest("GET", queryURL.String(), nil)
-	if err != nil {
-		return nil, err
-	}
-
-	return req, nil
-}
-
-// NewLoadVCRequest calls the generic LoadVC builder with application/json body
-func NewLoadVCRequest(server string, did string, body LoadVCJSONRequestBody) (*http.Request, error) {
-	var bodyReader io.Reader
-	buf, err := json.Marshal(body)
-	if err != nil {
-		return nil, err
-	}
-	bodyReader = bytes.NewReader(buf)
-	return NewLoadVCRequestWithBody(server, did, "application/json", bodyReader)
-}
-
-// NewLoadVCRequestWithBody generates requests for LoadVC with any type of body
-func NewLoadVCRequestWithBody(server string, did string, contentType string, body io.Reader) (*http.Request, error) {
-	var err error
-
-	var pathParam0 string
-
-	pathParam0 = did
-
-	serverURL, err := url.Parse(server)
-	if err != nil {
-		return nil, err
-	}
-
-	operationPath := fmt.Sprintf("/internal/vcr/v2/holder/%s/vc", pathParam0)
-	if operationPath[0] == '/' {
-		operationPath = "." + operationPath
-	}
-
-	queryURL, err := serverURL.Parse(operationPath)
-	if err != nil {
-		return nil, err
-	}
-
-	req, err := http.NewRequest("POST", queryURL.String(), body)
-	if err != nil {
-		return nil, err
-	}
-
-	req.Header.Add("Content-Type", contentType)
-
-	return req, nil
-}
-
 // NewRemoveCredentialFromWalletRequest generates requests for RemoveCredentialFromWallet
 func NewRemoveCredentialFromWalletRequest(server string, did string, id string) (*http.Request, error) {
 	var err error
@@ -975,6 +900,81 @@ func NewRemoveCredentialFromWalletRequest(server string, did string, id string) 
 	if err != nil {
 		return nil, err
 	}
+
+	return req, nil
+}
+
+// NewGetCredentialsInWalletRequest generates requests for GetCredentialsInWallet
+func NewGetCredentialsInWalletRequest(server string, subjectID string) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0 = subjectID
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/internal/vcr/v2/holder/%s/vc", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewLoadVCRequest calls the generic LoadVC builder with application/json body
+func NewLoadVCRequest(server string, subjectID string, body LoadVCJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewLoadVCRequestWithBody(server, subjectID, "application/json", bodyReader)
+}
+
+// NewLoadVCRequestWithBody generates requests for LoadVC with any type of body
+func NewLoadVCRequestWithBody(server string, subjectID string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0 = subjectID
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/internal/vcr/v2/holder/%s/vc", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("POST", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
 
 	return req, nil
 }
@@ -1476,16 +1476,16 @@ type ClientWithResponsesInterface interface {
 
 	CreateVPWithResponse(ctx context.Context, body CreateVPJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateVPResponse, error)
 
-	// GetCredentialsInWalletWithResponse request
-	GetCredentialsInWalletWithResponse(ctx context.Context, did string, reqEditors ...RequestEditorFn) (*GetCredentialsInWalletResponse, error)
-
-	// LoadVCWithBodyWithResponse request with any body
-	LoadVCWithBodyWithResponse(ctx context.Context, did string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*LoadVCResponse, error)
-
-	LoadVCWithResponse(ctx context.Context, did string, body LoadVCJSONRequestBody, reqEditors ...RequestEditorFn) (*LoadVCResponse, error)
-
 	// RemoveCredentialFromWalletWithResponse request
 	RemoveCredentialFromWalletWithResponse(ctx context.Context, did string, id string, reqEditors ...RequestEditorFn) (*RemoveCredentialFromWalletResponse, error)
+
+	// GetCredentialsInWalletWithResponse request
+	GetCredentialsInWalletWithResponse(ctx context.Context, subjectID string, reqEditors ...RequestEditorFn) (*GetCredentialsInWalletResponse, error)
+
+	// LoadVCWithBodyWithResponse request with any body
+	LoadVCWithBodyWithResponse(ctx context.Context, subjectID string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*LoadVCResponse, error)
+
+	LoadVCWithResponse(ctx context.Context, subjectID string, body LoadVCJSONRequestBody, reqEditors ...RequestEditorFn) (*LoadVCResponse, error)
 
 	// IssueVCWithBodyWithResponse request with any body
 	IssueVCWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*IssueVCResponse, error)
@@ -1565,6 +1565,37 @@ func (r CreateVPResponse) StatusCode() int {
 	return 0
 }
 
+type RemoveCredentialFromWalletResponse struct {
+	Body                          []byte
+	HTTPResponse                  *http.Response
+	ApplicationproblemJSONDefault *struct {
+		// Detail A human-readable explanation specific to this occurrence of the problem.
+		Detail string `json:"detail"`
+
+		// Status HTTP statuscode
+		Status float32 `json:"status"`
+
+		// Title A short, human-readable summary of the problem type.
+		Title string `json:"title"`
+	}
+}
+
+// Status returns HTTPResponse.Status
+func (r RemoveCredentialFromWalletResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r RemoveCredentialFromWalletResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
 type GetCredentialsInWalletResponse struct {
 	Body                          []byte
 	HTTPResponse                  *http.Response
@@ -1622,37 +1653,6 @@ func (r LoadVCResponse) Status() string {
 
 // StatusCode returns HTTPResponse.StatusCode
 func (r LoadVCResponse) StatusCode() int {
-	if r.HTTPResponse != nil {
-		return r.HTTPResponse.StatusCode
-	}
-	return 0
-}
-
-type RemoveCredentialFromWalletResponse struct {
-	Body                          []byte
-	HTTPResponse                  *http.Response
-	ApplicationproblemJSONDefault *struct {
-		// Detail A human-readable explanation specific to this occurrence of the problem.
-		Detail string `json:"detail"`
-
-		// Status HTTP statuscode
-		Status float32 `json:"status"`
-
-		// Title A short, human-readable summary of the problem type.
-		Title string `json:"title"`
-	}
-}
-
-// Status returns HTTPResponse.Status
-func (r RemoveCredentialFromWalletResponse) Status() string {
-	if r.HTTPResponse != nil {
-		return r.HTTPResponse.Status
-	}
-	return http.StatusText(0)
-}
-
-// StatusCode returns HTTPResponse.StatusCode
-func (r RemoveCredentialFromWalletResponse) StatusCode() int {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.StatusCode
 	}
@@ -2026,32 +2026,6 @@ func (c *ClientWithResponses) CreateVPWithResponse(ctx context.Context, body Cre
 	return ParseCreateVPResponse(rsp)
 }
 
-// GetCredentialsInWalletWithResponse request returning *GetCredentialsInWalletResponse
-func (c *ClientWithResponses) GetCredentialsInWalletWithResponse(ctx context.Context, did string, reqEditors ...RequestEditorFn) (*GetCredentialsInWalletResponse, error) {
-	rsp, err := c.GetCredentialsInWallet(ctx, did, reqEditors...)
-	if err != nil {
-		return nil, err
-	}
-	return ParseGetCredentialsInWalletResponse(rsp)
-}
-
-// LoadVCWithBodyWithResponse request with arbitrary body returning *LoadVCResponse
-func (c *ClientWithResponses) LoadVCWithBodyWithResponse(ctx context.Context, did string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*LoadVCResponse, error) {
-	rsp, err := c.LoadVCWithBody(ctx, did, contentType, body, reqEditors...)
-	if err != nil {
-		return nil, err
-	}
-	return ParseLoadVCResponse(rsp)
-}
-
-func (c *ClientWithResponses) LoadVCWithResponse(ctx context.Context, did string, body LoadVCJSONRequestBody, reqEditors ...RequestEditorFn) (*LoadVCResponse, error) {
-	rsp, err := c.LoadVC(ctx, did, body, reqEditors...)
-	if err != nil {
-		return nil, err
-	}
-	return ParseLoadVCResponse(rsp)
-}
-
 // RemoveCredentialFromWalletWithResponse request returning *RemoveCredentialFromWalletResponse
 func (c *ClientWithResponses) RemoveCredentialFromWalletWithResponse(ctx context.Context, did string, id string, reqEditors ...RequestEditorFn) (*RemoveCredentialFromWalletResponse, error) {
 	rsp, err := c.RemoveCredentialFromWallet(ctx, did, id, reqEditors...)
@@ -2059,6 +2033,32 @@ func (c *ClientWithResponses) RemoveCredentialFromWalletWithResponse(ctx context
 		return nil, err
 	}
 	return ParseRemoveCredentialFromWalletResponse(rsp)
+}
+
+// GetCredentialsInWalletWithResponse request returning *GetCredentialsInWalletResponse
+func (c *ClientWithResponses) GetCredentialsInWalletWithResponse(ctx context.Context, subjectID string, reqEditors ...RequestEditorFn) (*GetCredentialsInWalletResponse, error) {
+	rsp, err := c.GetCredentialsInWallet(ctx, subjectID, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetCredentialsInWalletResponse(rsp)
+}
+
+// LoadVCWithBodyWithResponse request with arbitrary body returning *LoadVCResponse
+func (c *ClientWithResponses) LoadVCWithBodyWithResponse(ctx context.Context, subjectID string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*LoadVCResponse, error) {
+	rsp, err := c.LoadVCWithBody(ctx, subjectID, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseLoadVCResponse(rsp)
+}
+
+func (c *ClientWithResponses) LoadVCWithResponse(ctx context.Context, subjectID string, body LoadVCJSONRequestBody, reqEditors ...RequestEditorFn) (*LoadVCResponse, error) {
+	rsp, err := c.LoadVC(ctx, subjectID, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseLoadVCResponse(rsp)
 }
 
 // IssueVCWithBodyWithResponse request with arbitrary body returning *IssueVCResponse
@@ -2250,6 +2250,41 @@ func ParseCreateVPResponse(rsp *http.Response) (*CreateVPResponse, error) {
 	return response, nil
 }
 
+// ParseRemoveCredentialFromWalletResponse parses an HTTP response from a RemoveCredentialFromWalletWithResponse call
+func ParseRemoveCredentialFromWalletResponse(rsp *http.Response) (*RemoveCredentialFromWalletResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &RemoveCredentialFromWalletResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
+		var dest struct {
+			// Detail A human-readable explanation specific to this occurrence of the problem.
+			Detail string `json:"detail"`
+
+			// Status HTTP statuscode
+			Status float32 `json:"status"`
+
+			// Title A short, human-readable summary of the problem type.
+			Title string `json:"title"`
+		}
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSONDefault = &dest
+
+	}
+
+	return response, nil
+}
+
 // ParseGetCredentialsInWalletResponse parses an HTTP response from a GetCredentialsInWalletWithResponse call
 func ParseGetCredentialsInWalletResponse(rsp *http.Response) (*GetCredentialsInWalletResponse, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
@@ -2301,41 +2336,6 @@ func ParseLoadVCResponse(rsp *http.Response) (*LoadVCResponse, error) {
 	}
 
 	response := &LoadVCResponse{
-		Body:         bodyBytes,
-		HTTPResponse: rsp,
-	}
-
-	switch {
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
-		var dest struct {
-			// Detail A human-readable explanation specific to this occurrence of the problem.
-			Detail string `json:"detail"`
-
-			// Status HTTP statuscode
-			Status float32 `json:"status"`
-
-			// Title A short, human-readable summary of the problem type.
-			Title string `json:"title"`
-		}
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.ApplicationproblemJSONDefault = &dest
-
-	}
-
-	return response, nil
-}
-
-// ParseRemoveCredentialFromWalletResponse parses an HTTP response from a RemoveCredentialFromWalletWithResponse call
-func ParseRemoveCredentialFromWalletResponse(rsp *http.Response) (*RemoveCredentialFromWalletResponse, error) {
-	bodyBytes, err := io.ReadAll(rsp.Body)
-	defer func() { _ = rsp.Body.Close() }()
-	if err != nil {
-		return nil, err
-	}
-
-	response := &RemoveCredentialFromWalletResponse{
 		Body:         bodyBytes,
 		HTTPResponse: rsp,
 	}

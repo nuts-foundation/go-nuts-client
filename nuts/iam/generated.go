@@ -1131,7 +1131,7 @@ func NewValidateDPoPProofRequestWithBody(server string, contentType string, body
 		return nil, err
 	}
 
-	operationPath := fmt.Sprintf("/internal/auth/v2/dpop_validate")
+	operationPath := fmt.Sprintf("/internal/auth/v2/dpop/validate")
 	if operationPath[0] == '/' {
 		operationPath = "." + operationPath
 	}
@@ -1175,7 +1175,7 @@ func NewCreateDPoPProofRequestWithBody(server string, kid string, contentType st
 		return nil, err
 	}
 
-	operationPath := fmt.Sprintf("/internal/auth/v2/%s/dpop", pathParam0)
+	operationPath := fmt.Sprintf("/internal/auth/v2/dpop/%s", pathParam0)
 	if operationPath[0] == '/' {
 		operationPath = "." + operationPath
 	}
