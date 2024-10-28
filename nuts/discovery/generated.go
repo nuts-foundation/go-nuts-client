@@ -50,6 +50,9 @@ type ServiceActivationRequest struct {
 
 // ServiceDefinition defines model for ServiceDefinition.
 type ServiceDefinition struct {
+	// DidMethods List of DID Methods supported by the Discovery Service. Empty/missing means no restrictions.
+	DidMethods *[]string `json:"did_methods,omitempty"`
+
 	// Endpoint The endpoint of the Discovery Service.
 	Endpoint string `json:"endpoint"`
 
@@ -579,16 +582,6 @@ type DeactivateServiceForSubjectResponse struct {
 		// Reason Description of why removal of the registration failed.
 		Reason string `json:"reason"`
 	}
-	ApplicationproblemJSON400 *struct {
-		// Detail A human-readable explanation specific to this occurrence of the problem.
-		Detail string `json:"detail"`
-
-		// Status HTTP statuscode
-		Status float32 `json:"status"`
-
-		// Title A short, human-readable summary of the problem type.
-		Title string `json:"title"`
-	}
 	ApplicationproblemJSONDefault *struct {
 		// Detail A human-readable explanation specific to this occurrence of the problem.
 		Detail string `json:"detail"`
@@ -624,8 +617,14 @@ type GetServiceActivationResponse struct {
 		// Activated Whether the Discovery Service is activated for the given subject
 		Activated bool `json:"activated"`
 
+		// Error Error message if status is "error".
+		Error *string `json:"error,omitempty"`
+
+		// Status Status of the activation. "active" or "error".
+		Status *N200Status `json:"status,omitempty"`
+
 		// Vp List of VPs on the Discovery Service for the subject. One per DID method registered on the Service.
-		// The list can be empty even if activated==true if none of the DIDs of a subject is actually registered on the Discovery Service.
+		// The list is empty when status is "error".
 		Vp *[]VerifiablePresentation `json:"vp,omitempty"`
 	}
 	ApplicationproblemJSONDefault *struct {
@@ -657,22 +656,8 @@ func (r GetServiceActivationResponse) StatusCode() int {
 }
 
 type ActivateServiceForSubjectResponse struct {
-	Body         []byte
-	HTTPResponse *http.Response
-	JSON202      *struct {
-		// Reason Description of why registration failed.
-		Reason string `json:"reason"`
-	}
-	ApplicationproblemJSON400 *struct {
-		// Detail A human-readable explanation specific to this occurrence of the problem.
-		Detail string `json:"detail"`
-
-		// Status HTTP statuscode
-		Status float32 `json:"status"`
-
-		// Title A short, human-readable summary of the problem type.
-		Title string `json:"title"`
-	}
+	Body                          []byte
+	HTTPResponse                  *http.Response
 	ApplicationproblemJSONDefault *struct {
 		// Detail A human-readable explanation specific to this occurrence of the problem.
 		Detail string `json:"detail"`
@@ -862,22 +847,6 @@ func ParseDeactivateServiceForSubjectResponse(rsp *http.Response) (*DeactivateSe
 		}
 		response.JSON202 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
-		var dest struct {
-			// Detail A human-readable explanation specific to this occurrence of the problem.
-			Detail string `json:"detail"`
-
-			// Status HTTP statuscode
-			Status float32 `json:"status"`
-
-			// Title A short, human-readable summary of the problem type.
-			Title string `json:"title"`
-		}
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.ApplicationproblemJSON400 = &dest
-
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
 		var dest struct {
 			// Detail A human-readable explanation specific to this occurrence of the problem.
@@ -918,8 +887,14 @@ func ParseGetServiceActivationResponse(rsp *http.Response) (*GetServiceActivatio
 			// Activated Whether the Discovery Service is activated for the given subject
 			Activated bool `json:"activated"`
 
+			// Error Error message if status is "error".
+			Error *string `json:"error,omitempty"`
+
+			// Status Status of the activation. "active" or "error".
+			Status *N200Status `json:"status,omitempty"`
+
 			// Vp List of VPs on the Discovery Service for the subject. One per DID method registered on the Service.
-			// The list can be empty even if activated==true if none of the DIDs of a subject is actually registered on the Discovery Service.
+			// The list is empty when status is "error".
 			Vp *[]VerifiablePresentation `json:"vp,omitempty"`
 		}
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
@@ -962,32 +937,6 @@ func ParseActivateServiceForSubjectResponse(rsp *http.Response) (*ActivateServic
 	}
 
 	switch {
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 202:
-		var dest struct {
-			// Reason Description of why registration failed.
-			Reason string `json:"reason"`
-		}
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON202 = &dest
-
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
-		var dest struct {
-			// Detail A human-readable explanation specific to this occurrence of the problem.
-			Detail string `json:"detail"`
-
-			// Status HTTP statuscode
-			Status float32 `json:"status"`
-
-			// Title A short, human-readable summary of the problem type.
-			Title string `json:"title"`
-		}
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.ApplicationproblemJSON400 = &dest
-
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
 		var dest struct {
 			// Detail A human-readable explanation specific to this occurrence of the problem.
