@@ -9,6 +9,7 @@ import (
 type Token struct {
 	AccessToken string
 	TokenType   string
+	DPoPToken   *string
 	Expiry      *time.Time
 }
 

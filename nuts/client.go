@@ -45,14 +45,10 @@ func (o OAuth2TokenSource) Token(httpRequest *http.Request, authzServerURL *url.
 	if err != nil {
 		return nil, err
 	}
-	// TODO: Might want to support DPoP as well
-	var tokenType = iam.ServiceAccessTokenRequestTokenTypeBearer
-	// TODO: Is this the right context to use?
 	response, err := client.RequestServiceAccessToken(httpRequest.Context(), o.NutsSubject, iam.RequestServiceAccessTokenJSONRequestBody{
 		AuthorizationServer: authzServerURL.String(),
 		Credentials:         &additionalCredentials,
 		Scope:               scope,
-		TokenType:           &tokenType,
 	})
 	if err != nil {
 		return nil, err
@@ -69,9 +65,34 @@ func (o OAuth2TokenSource) Token(httpRequest *http.Request, authzServerURL *url.
 		expiry = new(time.Time)
 		*expiry = time.Now().Add(time.Duration(*accessTokenResponse.JSON200.ExpiresIn) * time.Second)
 	}
+	tokenType := iam.ServiceAccessTokenRequestTokenType(accessTokenResponse.JSON200.TokenType)
+	var dPoPToken *string
+	if tokenType == iam.ServiceAccessTokenRequestTokenTypeDPoP {
+		if accessTokenResponse.JSON200.DpopKid == nil {
+			return nil, fmt.Errorf("type is DPoP but no DpopKid has been provided")
+		}
+		kid := *accessTokenResponse.JSON200.DpopKid
+		proof, err := client.CreateDPoPProof(httpRequest.Context(), kid, iam.CreateDPoPProofJSONRequestBody{
+			Token: accessTokenResponse.JSON200.AccessToken,
+			Htm:   httpRequest.Method,
+			Htu:   httpRequest.URL.String(),
+		})
+		if err != nil {
+			return nil, err
+		}
+		proofResponse, err := iam.ParseCreateDPoPProofResponse(proof)
+		if err != nil {
+			return nil, err
+		}
+		if proofResponse.JSON200 == nil {
+			return nil, fmt.Errorf("failed service dpop response: %s", accessTokenResponse.HTTPResponse.Status)
+		}
+		dPoPToken = &proofResponse.JSON200.Dpop
+	}
 	return &oauth2.Token{
 		AccessToken: accessTokenResponse.JSON200.AccessToken,
-		TokenType:   accessTokenResponse.JSON200.TokenType,
+		DPoPToken:   dPoPToken,
+		TokenType:   string(tokenType),
 		Expiry:      expiry,
 	}, nil
 }

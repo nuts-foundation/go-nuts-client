@@ -77,6 +77,9 @@ func (o *Transport) RoundTrip(httpRequest *http.Request) (*http.Response, error)
 		}
 		httpRequest = copyRequest(httpRequest, requestBody)
 		httpRequest.Header.Set("Authorization", fmt.Sprintf("%s %s", token.TokenType, token.AccessToken))
+		if token.DPoPToken != nil {
+			httpRequest.Header.Set("DPoP", *token.DPoPToken)
+		}
 		httpResponse, err = client.RoundTrip(httpRequest)
 	}
 	return httpResponse, err
