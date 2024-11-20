@@ -76,7 +76,7 @@ func (o *Transport) RoundTrip(httpRequest *http.Request) (*http.Response, error)
 			return nil, fmt.Errorf("OAuth2 token request (resource=%s): %w", httpRequest.URL.String(), err)
 		}
 		httpRequest = copyRequest(httpRequest, requestBody)
-		httpRequest.Header.Set("Authorization", fmt.Sprintf("%s %s", "Bearer", token.AccessToken))
+		httpRequest.Header.Set("Authorization", fmt.Sprintf("%s %s", token.TokenType, token.AccessToken))
 		if token.DPoPToken != nil {
 			httpRequest.Header.Set("DPoP", *token.DPoPToken)
 		}
