@@ -2,7 +2,6 @@ package oauth2
 
 import (
 	"bytes"
-	"context"
 	"github.com/stretchr/testify/require"
 	"io"
 	"net/http"
@@ -25,15 +24,10 @@ func TestClient_RoundTrip(t *testing.T) {
 				_, _ = w.Write([]byte("Access granted"))
 			})
 			httpServer := httptest.NewServer(mux)
-			tokenEndpoint, _ := url.Parse(httpServer.URL + "/token")
 			client := http.Client{
 				Transport: &Transport{
-					TokenSource:    &noAuthTokenSource{},
-					MetadataLoader: &MetadataLoader{},
-					Scope:          "test-scope",
-					AuthzServerLocators: []AuthorizationServerLocator{
-						StaticAuthorizationServerURL(tokenEndpoint),
-					},
+					TokenSource: &noAuthTokenSource{},
+					Scope:       "test-scope",
 				},
 			}
 
@@ -58,15 +52,10 @@ func TestClient_RoundTrip(t *testing.T) {
 				_, _ = w.Write([]byte("Access granted"))
 			})
 			httpServer := httptest.NewServer(mux)
-			tokenEndpoint, _ := url.Parse(httpServer.URL + "/token")
 			client := http.Client{
 				Transport: &Transport{
-					TokenSource:    &noAuthTokenSource{},
-					MetadataLoader: &MetadataLoader{},
-					Scope:          "test-scope",
-					AuthzServerLocators: []AuthorizationServerLocator{
-						StaticAuthorizationServerURL(tokenEndpoint),
-					},
+					TokenSource: &noAuthTokenSource{},
+					Scope:       "test-scope",
 				},
 			}
 
@@ -76,38 +65,6 @@ func TestClient_RoundTrip(t *testing.T) {
 			require.Equal(t, http.StatusOK, httpResponse.StatusCode)
 			require.Equal(t, "test", string(capturedBody))
 		})
-	})
-	t.Run("Resource Server does not require authentication", func(t *testing.T) {
-		mux := http.NewServeMux()
-		mux.HandleFunc("/resource", func(w http.ResponseWriter, r *http.Request) {
-			w.WriteHeader(http.StatusOK)
-			_, _ = w.Write([]byte("OK"))
-		})
-		httpServer := httptest.NewServer(mux)
-		client := NewClient(nil, "scope")
-
-		httpResponse, err := client.Get(httpServer.URL + "/resource")
-
-		require.NoError(t, err)
-		require.Equal(t, http.StatusOK, httpResponse.StatusCode)
-		responseBytes, err := io.ReadAll(httpResponse.Body)
-		require.NoError(t, err)
-		require.Equal(t, "OK", string(responseBytes))
-	})
-}
-
-func TestTransport_requestToken(t *testing.T) {
-	t.Run("scope not set", func(t *testing.T) {
-		httpRequest, _ := http.NewRequestWithContext(context.Background(), "GET", "https://resource.example.com", nil)
-		transport := &Transport{
-			AuthzServerLocators: []AuthorizationServerLocator{
-				StaticAuthorizationServerURL(&url.URL{}),
-			},
-		}
-
-		_, err := transport.requestToken(httpRequest, nil)
-
-		require.EqualError(t, err, "scope is required")
 	})
 }
 
