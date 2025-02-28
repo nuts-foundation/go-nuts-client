@@ -33,7 +33,7 @@ type OAuth2TokenSource struct {
 	NutsHttpClient *http.Client
 }
 
-func (o OAuth2TokenSource) Token(httpRequest *http.Request, authzServerURL *url.URL, scope string) (*oauth2.Token, error) {
+func (o OAuth2TokenSource) Token(httpRequest *http.Request, authzServerURL *url.URL, scope string, noCache bool) (*oauth2.Token, error) {
 	if o.NutsSubject == "" {
 		return nil, fmt.Errorf("ownDID is required")
 	}
@@ -48,7 +48,12 @@ func (o OAuth2TokenSource) Token(httpRequest *http.Request, authzServerURL *url.
 	// TODO: Might want to support DPoP as well
 	var tokenType = iam.ServiceAccessTokenRequestTokenTypeBearer
 	// TODO: Is this the right context to use?
-	response, err := client.RequestServiceAccessToken(httpRequest.Context(), o.NutsSubject, iam.RequestServiceAccessTokenJSONRequestBody{
+	params := iam.RequestServiceAccessTokenParams{}
+	if noCache {
+		noCacheValue := "no-cache"
+		params.CacheControl = &noCacheValue
+	}
+	response, err := client.RequestServiceAccessToken(httpRequest.Context(), o.NutsSubject, &params, iam.RequestServiceAccessTokenJSONRequestBody{
 		AuthorizationServer: authzServerURL.String(),
 		Credentials:         &additionalCredentials,
 		Scope:               scope,
