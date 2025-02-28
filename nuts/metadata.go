@@ -22,7 +22,7 @@ func (e EmployeeDetails) Credentials() []vc.VerifiableCredential {
 			},
 			Type: []ssi.URI{
 				ssi.MustParseURI("VerifiableCredential"),
-				ssi.MustParseURI("EmployeeCredential"),
+				ssi.MustParseURI("NutsEmployeeCredential"),
 			},
 			CredentialSubject: []interface{}{
 				map[string]interface{}{
