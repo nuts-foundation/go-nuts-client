@@ -1,9 +1,11 @@
 package oauth2
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"net/url"
 )
@@ -40,16 +42,52 @@ func (o *Transport) RoundTrip(httpRequest *http.Request) (*http.Response, error)
 		client = o.UnderlyingTransport
 	}
 
-	token, err := o.requestToken(httpRequest)
+	var requestBody []byte = nil
+	if httpRequest.Body != nil {
+		requestBody, err = io.ReadAll(httpRequest.Body)
+		if err != nil {
+			return nil, fmt.Errorf("reading request body: %w", err)
+		}
+	}
+
+	const maxTries = 2
+	requestFreshToken := false
+	var httpResponse *http.Response
+	var errs []error
+	for tryNum := 1; tryNum <= maxTries; tryNum++ {
+		httpRequestCopy := httpRequest.Clone(httpRequest.Context())
+		if requestBody != nil {
+			httpRequestCopy.Body = io.NopCloser(bytes.NewReader(requestBody))
+		}
+		httpResponse, err = o.attemptRequest(client, httpRequestCopy, requestFreshToken)
+		if err != nil {
+			errs = append(errs, err)
+			if tryNum < maxTries {
+				// Retry
+				continue
+			}
+			return nil, fmt.Errorf("HTTP request failed after %d attempts: %w", tryNum, errors.Join(errs...))
+		}
+		requestFreshToken = false
+		if httpResponse.StatusCode == http.StatusUnauthorized {
+			// Should be retried with a new token.
+			requestFreshToken = true
+			continue
+		}
+	}
+	return httpResponse, err
+}
+
+func (o *Transport) attemptRequest(client http.RoundTripper, httpRequest *http.Request, requestFreshToken bool) (*http.Response, error) {
+	token, err := o.requestToken(httpRequest, requestFreshToken)
 	if err != nil {
 		return nil, fmt.Errorf("OAuth2 token request (resource=%s): %w", httpRequest.URL.String(), err)
 	}
-	httpRequest = httpRequest.Clone(httpRequest.Context())
 	httpRequest.Header.Set("Authorization", fmt.Sprintf("%s %s", token.TokenType, token.AccessToken))
 	return client.RoundTrip(httpRequest)
 }
 
-func (o *Transport) requestToken(httpRequest *http.Request) (*Token, error) {
+func (o *Transport) requestToken(httpRequest *http.Request, noCache bool) (*Token, error) {
 	// Use the scope from the request context if available.
 	scope := o.Scope
 	if ctxScope, ok := httpRequest.Context().Value(withScopeContextKeyInstance).(string); ok {
@@ -59,7 +97,7 @@ func (o *Transport) requestToken(httpRequest *http.Request) (*Token, error) {
 		return nil, errors.New("scope is required")
 	}
 
-	token, err := o.TokenSource.Token(httpRequest, o.AuthzServerURL, scope)
+	token, err := o.TokenSource.Token(httpRequest, o.AuthzServerURL, scope, noCache)
 	if err != nil {
 		return nil, err
 	}

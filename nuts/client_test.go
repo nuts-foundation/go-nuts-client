@@ -17,7 +17,11 @@ import (
 func TestOAuth2TokenSource_Token(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		mux := http.NewServeMux()
+		capturedHeaders := make(http.Header)
 		mux.HandleFunc("/internal/auth/v2/123abc/request-service-access-token", func(w http.ResponseWriter, r *http.Request) {
+			for k, v := range r.Header {
+				capturedHeaders[k] = v
+			}
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusOK)
 			_, _ = w.Write([]byte(`{"access_token":"test","token_type":"bearer","expires_in":3600}`))
@@ -30,15 +34,25 @@ func TestOAuth2TokenSource_Token(t *testing.T) {
 		expectedAuthServerURL, _ := url.Parse("https://auth.example.com")
 		httpRequest, _ := http.NewRequestWithContext(context.Background(), "GET", "https://resource.example.com", nil)
 
-		token, err := tokenSource.Token(httpRequest, expectedAuthServerURL, "test")
+		t.Run("no Cache-Control headers", func(t *testing.T) {
+			token, err := tokenSource.Token(httpRequest, expectedAuthServerURL, "test", false)
 
-		require.NoError(t, err)
-		require.NotNil(t, token)
+			require.NoError(t, err)
+			require.NotNil(t, token)
 
-		require.Equal(t, "test", token.AccessToken)
-		require.Equal(t, "bearer", token.TokenType)
-		require.Greater(t, token.Expiry.Unix(), time.Now().Unix())
-		require.Less(t, token.Expiry.Unix(), time.Now().Add(2*time.Hour).Unix())
+			require.Equal(t, "test", token.AccessToken)
+			require.Equal(t, "bearer", token.TokenType)
+			require.Greater(t, token.Expiry.Unix(), time.Now().Unix())
+			require.Less(t, token.Expiry.Unix(), time.Now().Add(2*time.Hour).Unix())
+		})
+		t.Run("specify Cache-Control: no-cache", func(t *testing.T) {
+			token, err := tokenSource.Token(httpRequest, expectedAuthServerURL, "test", true)
+
+			require.NoError(t, err)
+			require.NotNil(t, token)
+			
+			require.Equal(t, "no-cache", capturedHeaders.Get("Cache-Control"))
+		})
 	})
 	t.Run("additional credentials", func(t *testing.T) {
 		mux := http.NewServeMux()
@@ -62,7 +76,7 @@ func TestOAuth2TokenSource_Token(t *testing.T) {
 		})
 		httpRequest, _ := http.NewRequestWithContext(requestCtx, "GET", "https://resource.example.com", nil)
 
-		token, err := tokenSource.Token(httpRequest, expectedAuthServerURL, "test")
+		token, err := tokenSource.Token(httpRequest, expectedAuthServerURL, "test", false)
 
 		require.NoError(t, err)
 		require.NotNil(t, token)

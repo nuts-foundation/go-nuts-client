@@ -13,5 +13,5 @@ type Token struct {
 }
 
 type TokenSource interface {
-	Token(httpRequest *http.Request, authzServerURL *url.URL, scope string) (*Token, error)
+	Token(httpRequest *http.Request, authzServerURL *url.URL, scope string, noCache bool) (*Token, error)
 }
