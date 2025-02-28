@@ -15,7 +15,9 @@ func TestClient_RoundTrip(t *testing.T) {
 	t.Run("Resource Server requires authentication", func(t *testing.T) {
 		t.Run("GET request", func(t *testing.T) {
 			mux := http.NewServeMux()
+			invocations := 0
 			mux.HandleFunc("GET /resource", func(w http.ResponseWriter, r *http.Request) {
+				invocations++
 				if r.Header.Get("Authorization") != "Bearer token" {
 					w.WriteHeader(http.StatusUnauthorized)
 					_, _ = w.Write([]byte("Unauthorized"))
@@ -36,12 +38,15 @@ func TestClient_RoundTrip(t *testing.T) {
 
 			require.NoError(t, err)
 			require.Equal(t, http.StatusOK, httpResponse.StatusCode)
+			require.Equal(t, 1, invocations)
 		})
 		t.Run("401 Unauthorized retries HTTP request with fresh token", func(t *testing.T) {
 			t.Run("GET request", func(t *testing.T) {
 				mux := http.NewServeMux()
 				var capturedBody []byte
+				invocations := 0
 				mux.HandleFunc("GET /resource", func(w http.ResponseWriter, r *http.Request) {
+					invocations++
 					// Reject the first token
 					if r.Header.Get("Authorization") != "Bearer token2" {
 						w.WriteHeader(http.StatusUnauthorized)
@@ -67,6 +72,7 @@ func TestClient_RoundTrip(t *testing.T) {
 				require.NoError(t, err)
 				require.Equal(t, http.StatusOK, httpResponse.StatusCode)
 				require.Empty(t, string(capturedBody))
+				require.Equal(t, 2, invocations)
 			})
 			t.Run("max. number of retries reached", func(t *testing.T) {
 				mux := http.NewServeMux()

@@ -74,6 +74,7 @@ func (o *Transport) RoundTrip(httpRequest *http.Request) (*http.Response, error)
 			requestFreshToken = true
 			continue
 		}
+		break
 	}
 	return httpResponse, err
 }
