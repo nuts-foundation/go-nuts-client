@@ -62,21 +62,21 @@ func (o *Transport) RoundTrip(httpRequest *http.Request) (*http.Response, error)
 		httpResponse, err = o.attemptRequest(client, httpRequestCopy, requestFreshToken)
 		if err != nil {
 			errs = append(errs, err)
-			if tryNum < maxTries {
-				// Retry
+		} else {
+			requestFreshToken = false
+			if httpResponse.StatusCode == http.StatusUnauthorized {
+				// Should be retried with a new token.
+				requestFreshToken = true
 				continue
 			}
-			return nil, fmt.Errorf("HTTP request failed after %d attempts: %w", tryNum, errors.Join(errs...))
+			// HTTP response OK (or at least not something we can smartly handle)
+			break
 		}
-		requestFreshToken = false
-		if httpResponse.StatusCode == http.StatusUnauthorized {
-			// Should be retried with a new token.
-			requestFreshToken = true
-			continue
-		}
-		break
 	}
-	return httpResponse, err
+	if err != nil {
+		return nil, fmt.Errorf("HTTP request failed after %d attempts: %w", maxTries, errors.Join(errs...))
+	}
+	return httpResponse, nil
 }
 
 func (o *Transport) attemptRequest(client http.RoundTripper, httpRequest *http.Request, requestFreshToken bool) (*http.Response, error) {
