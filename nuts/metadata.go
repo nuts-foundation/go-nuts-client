@@ -24,8 +24,8 @@ func (e EmployeeDetails) Credentials() []vc.VerifiableCredential {
 				ssi.MustParseURI("VerifiableCredential"),
 				ssi.MustParseURI("NutsEmployeeCredential"),
 			},
-			CredentialSubject: []interface{}{
-				map[string]interface{}{
+			CredentialSubject: []map[string]interface{}{
+				{
 					"identifier": e.Id,
 					"name":       e.Name,
 					"roleName":   e.Role,
