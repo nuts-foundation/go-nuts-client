@@ -1,7 +1,6 @@
 module github.com/nuts-foundation/go-nuts-client
 
 go 1.22.2
-toolchain go1.24.1
 
 require (
 	github.com/nuts-foundation/go-did v0.14.0
