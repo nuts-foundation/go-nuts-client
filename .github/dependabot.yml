@@ -1,0 +1,18 @@
+version: 2
+updates:
+  # Go
+  - package-ecosystem: "gomod"
+    # checks /go.mod
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "sunday"
+      time: "23:00"
+      timezone: "Europe/Amsterdam"
+    groups:
+      go-modules:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
