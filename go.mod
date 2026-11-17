@@ -5,7 +5,7 @@ go 1.26.0
 require (
 	github.com/nuts-foundation/go-did v0.22.2
 	github.com/oapi-codegen/oapi-codegen/v2 v2.8.2
-	github.com/oapi-codegen/runtime v1.8.0
+	github.com/oapi-codegen/runtime v1.9.0
 	github.com/stretchr/testify v1.12.1
 )
 
